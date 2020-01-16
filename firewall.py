@@ -27,9 +27,10 @@ class Firewall:
                 self.rules.append(row)
                 line_count += 1
     # print(f'Processed {line_count} lines.')
-    print('Rules:')
+    print(len(self.rules), 'rules in total.')
+    print('-------------------------')
+    print('Constructing rule based tree...')
     for rule in self.rules:
-      print(rule)
       dir = rule[0]
       type = rule[1]
       ports = rule[2]
@@ -92,7 +93,6 @@ class Firewall:
                   self.root[dir][type]['ips'][i_0][i_1][i_2][i_3][port-1] = True
                 # print(self.root[dir][type]['ports'])
 
-
       else:
         singleIP = ips
         segments = singleIP.split('.')
@@ -120,6 +120,7 @@ class Firewall:
           # print('Single port number:', port)
           self.root[dir][type]['ips'][segments[0]][segments[1]][segments[2]][segments[3]][port-1] = True
         # print(self.root[dir][type]['ports'])
+    print('Rule based tree ready!')
 
   def accept_packet(self, dir, type, port, ip):
     ips = ip.split('.')
@@ -142,6 +143,8 @@ class Test(unittest.TestCase):
     def test_fw(self):
         file = "./rules.csv"
         fw = Firewall(file)
+
+        print('Trying tests...')
 
         ## Matches 1st rule
         packet = ("inbound", "tcp", 80, "192.168.1.2")
@@ -176,7 +179,7 @@ class Test(unittest.TestCase):
         self.assertEqual(expected, fw.accept_packet(packet[0],packet[1],packet[2],packet[3]), "Test case #7: should reject this packet")
 
         packet = ("inbound", "udp", 50, "192.170.16.100")
-        expected = False
+        expected = True
         self.assertEqual(expected, fw.accept_packet(packet[0],packet[1],packet[2],packet[3]), "Test case #8: should reject this packet")
 
 if __name__ == '__main__':
