@@ -7,11 +7,11 @@ import csv
 
 class Firewall:
   def __init__(self, filePath):
-    self.root = { 'inbound': {}, 'outbound': {} }
-    self.root['inbound']['tcp'] = {'ips': {} }
-    self.root['inbound']['udp'] = {'ips': {} }
-    self.root['outbound']['tcp'] = {'ips': {} }
-    self.root['outbound']['udp'] = {'ips': {} }
+    self.root = [[None for i in range(2)] for i in range(2)]
+    self.root[0][0] = {'ips': {} }
+    self.root[0][1] = {'ips': {} }
+    self.root[1][0] = {'ips': {} }
+    self.root[1][1] = {'ips': {} }
     self.test = 'It works'
     self.rules = []
     file = "./rules.csv"
@@ -31,8 +31,8 @@ class Firewall:
     print('-------------------------')
     print('Constructing rule based tree...')
     for rule in self.rules:
-      dir = rule[0]
-      type = rule[1]
+      dir = 0 if rule[0] == 'inbound' else 1
+      type = 0 if rule[1] == 'udp' else 1
       ports = rule[2]
       ips = rule[3]
 
@@ -78,19 +78,19 @@ class Firewall:
                 if i_2 not in self.root[dir][type]['ips'][i_0][i_1]:
                   self.root[dir][type]['ips'][i_0][i_1][i_2] = {}
                 if i_3 not in self.root[dir][type]['ips'][i_0][i_1][i_2]:
-                  self.root[dir][type]['ips'][i_0][i_1][i_2][i_3] = [False for i in range(65535)]
+                  self.root[dir][type]['ips'][i_0][i_1][i_2][i_3] = {}
                 ## Mark valid port numbers
                 if '-' in ports:
                   portRange = ports.split('-')
                   startPort = int(portRange[0])
                   endPort = int(portRange[1])
                   # print('Port range:', startPort, 'to', endPort)
-                  for i in range(startPort-1, endPort):
+                  for i in range(startPort, endPort+1):
                     self.root[dir][type]['ips'][i_0][i_1][i_2][i_3][i] = True
                 else:
                   port = int(ports)
                   # print('Single port number:', port)
-                  self.root[dir][type]['ips'][i_0][i_1][i_2][i_3][port-1] = True
+                  self.root[dir][type]['ips'][i_0][i_1][i_2][i_3][port] = True
                 # print(self.root[dir][type]['ports'])
 
       else:
@@ -106,23 +106,25 @@ class Firewall:
         if segments[2] not in self.root[dir][type]['ips'][segments[0]][segments[1]]:
           self.root[dir][type]['ips'][segments[0]][segments[1]][segments[2]] = {}
         if segments[3] not in self.root[dir][type]['ips'][segments[0]][segments[1]][segments[2]]:
-          self.root[dir][type]['ips'][segments[0]][segments[1]][segments[2]][segments[3]] = [False for i in range(65535)]
+          self.root[dir][type]['ips'][segments[0]][segments[1]][segments[2]][segments[3]] = {}
         ## Mark valid port numbers
         if '-' in ports:
           portRange = ports.split('-')
           startPort = int(portRange[0])
           endPort = int(portRange[1])
           # print('Port range:', startPort, 'to', endPort)
-          for i in range(startPort-1, endPort):
+          for i in range(startPort, endPort+1):
             self.root[dir][type]['ips'][segments[0]][segments[1]][segments[2]][segments[3]][i] = True
         else:
           port = int(ports)
           # print('Single port number:', port)
-          self.root[dir][type]['ips'][segments[0]][segments[1]][segments[2]][segments[3]][port-1] = True
+          self.root[dir][type]['ips'][segments[0]][segments[1]][segments[2]][segments[3]][port] = True
         # print(self.root[dir][type]['ports'])
     print('Rule based tree ready!')
 
   def accept_packet(self, dir, type, port, ip):
+    dir = 0 if dir == 'inbound' else 1
+    type = 0 if type == 'udp' else 1
     ips = ip.split('.')
     segment_0 = int(ips[0])
     segment_1 = int(ips[1])
@@ -134,7 +136,7 @@ class Firewall:
       segment_1 in self.root[dir][type]['ips'][segment_0] and \
       segment_2 in self.root[dir][type]['ips'][segment_0][segment_1] and \
       segment_3 in self.root[dir][type]['ips'][segment_0][segment_1][segment_2] and \
-      self.root[dir][type]['ips'][segment_0][segment_1][segment_2][segment_3][port-1]:
+      port in self.root[dir][type]['ips'][segment_0][segment_1][segment_2][segment_3]:
       return True
     # otherwise return False
     return False
@@ -179,7 +181,7 @@ class Test(unittest.TestCase):
         self.assertEqual(expected, fw.accept_packet(packet[0],packet[1],packet[2],packet[3]), "Test case #7: should reject this packet")
 
         packet = ("inbound", "udp", 50, "192.170.16.100")
-        expected = True
+        expected = False
         self.assertEqual(expected, fw.accept_packet(packet[0],packet[1],packet[2],packet[3]), "Test case #8: should reject this packet")
 
 if __name__ == '__main__':
